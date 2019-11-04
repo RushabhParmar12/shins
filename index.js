@@ -26,7 +26,7 @@ var md = require('markdown-it')({
     }
 }).use(require('markdown-it-lazy-headers'));
 md.use(emoji);
-const yaml = require('yaml');
+const yaml = require('js-yaml');
 const ejs = require('ejs');
 const uglify = require('uglify-js');
 const cheerio = require('cheerio');
@@ -46,7 +46,7 @@ function safeReadFileSync(filename,encoding) {
 }
 
 function javascript_include_tag(include) {
-    var includeStr = safeReadFileSync(path.join(globalOptions.root, '/source/javascripts/' + include + '.inc'), 'utf8');
+    var includeStr = safeReadFileSync(path.join(__dirname, '/source/javascripts/' + include + '.inc'), 'utf8');
     if (globalOptions.minify) {
         var scripts = [];
         var includes = includeStr.split('\r').join().split('\n');
@@ -55,11 +55,11 @@ function javascript_include_tag(include) {
             var elements = inc.split('"');
             if (elements[1]) {
                 if (elements[1] == 'text/javascript') {
-                    scripts.push(path.join(globalOptions.root, 'source/javascripts/all_nosearch.js'));
+                    scripts.push(path.join(__dirname, 'source/javascripts/all_nosearch.js'));
                     break;
                 }
                 else {
-                    scripts.push(path.join(globalOptions.root, elements[1]));
+                    scripts.push(path.join(__dirname, elements[1]));
                 }
             }
         }
@@ -68,22 +68,20 @@ function javascript_include_tag(include) {
             includeStr = '<script>'+bundle.code+'</script>';
         }
         else {
-            fs.writeFileSync(path.join(globalOptions.root, '/pub/js/shins.js'), bundle.code, 'utf8');
-            includeStr = safeReadFileSync(path.join(globalOptions.root, '/source/javascripts/' + include + '.bundle.inc'), 'utf8');
+            fs.writeFileSync(path.join(__dirname, '/pub/js/shins.js'), bundle.code, 'utf8');
+            includeStr = safeReadFileSync(path.join(__dirname, '/source/javascripts/' + include + '.bundle.inc'), 'utf8');
         }
     }
     return includeStr;
 }
 
 function partial(include) {
-    var includePath = '';
-    if (include.indexOf('/') === 0) {
-        includePath = path.join(globalOptions.root, include + '.md');
+    var includePath = "";
+    if (include.indexOf("/") === 0) {
+        includePath = path.join(__dirname, include + '.md');
     }
     else {
-        let components = include.split('/');
-        components[components.length-1] = '_'+components[components.length-1]+'.md';
-        includePath = path.join(globalOptions.root, '/source/includes/'+components.join('/'));
+        includePath = path.join(__dirname, '/source/includes/_' + include + '.md');
     }
     var includeStr = safeReadFileSync(includePath, 'utf8');
     return postProcess(md.render(clean(includeStr)));
@@ -99,7 +97,7 @@ function stylesheet_link_tag(stylesheet, media) {
         override = 'theme';
     }
     if (globalOptions.inline) {
-        var stylePath = path.join(globalOptions.root, '/pub/css/' + stylesheet + '.css');
+        var stylePath = path.join(__dirname, '/pub/css/' + stylesheet + '.css');
         if (!fs.existsSync(stylePath)) {
             stylePath = path.join(hlpath, '/styles/' + stylesheet + '.css');
         }
@@ -107,7 +105,7 @@ function stylesheet_link_tag(stylesheet, media) {
         styleContent = replaceAll(styleContent, '../../source/fonts/', globalOptions.fonturl||'https://raw.githubusercontent.com/Mermade/shins/master/source/fonts/');
         styleContent = replaceAll(styleContent, '../../source/', 'source/');
         if (globalOptions.customCss) {
-            let overrideFilename = path.join(globalOptions.root, '/pub/css/' + override + '_overrides.css');
+            let overrideFilename = path.join(__dirname, '/pub/css/' + override + '_overrides.css');
             if (fs.existsSync(overrideFilename)) {
                 styleContent += '\n' + safeReadFileSync(overrideFilename, 'utf8');
             }
@@ -121,18 +119,18 @@ function stylesheet_link_tag(stylesheet, media) {
     }
     else {
         if (media == 'screen') {
-            var target = path.join(globalOptions.root, '/pub/css/' + stylesheet + '.css');
+            var target = path.join(__dirname, '/pub/css/' + stylesheet + '.css');
             if (!fs.existsSync(target)) {
                 var source = path.join(hlpath, '/styles/' + stylesheet + '.css');
                 fs.writeFileSync(target, safeReadFileSync(source));
             }
         }
         var include = '<link rel="stylesheet" media="' + media + '" href="pub/css/' + stylesheet + '.css">';
-        if (globalOptions.css && stylesheet === 'screen') {
-            include += '\n    <link rel="stylesheet" media="' + media + '" href="' + globalOptions.css + '">';
-        }
         if (globalOptions.customCss) {
             include += '\n    <link rel="stylesheet" media="' + media + '" href="pub/css/' + override + '_overrides.css">';
+        }
+        if (globalOptions.css) {
+            include += '\n    <link rel="stylesheet" media="' + media + '" href="' + globalOptions.css + '">';
         }
         return include;
     }
@@ -204,8 +202,7 @@ function clean(s) {
         allowedAttributes: { a: [ 'href', 'id', 'name', 'target', 'class' ], img: [ 'src', 'alt', 'class' ] , aside: [ 'class' ],
             abbr: [ 'title', 'class' ], details: [ 'open', 'class' ], div: [ 'class' ], meta: [ 'name', 'content' ],
             link: [ 'rel', 'href', 'type', 'sizes' ],
-            h1: [ 'id' ], h2: [ 'id' ], h3: [ 'id' ], h4: [ 'id' ], h5: [ 'id' ], h6: [ 'id' ],
-            table: [ 'class' ], tr: [ 'class' ], td: [ 'class' ]}
+            h1: [ 'id' ], h2: [ 'id' ], h3: [ 'id' ], h4: [ 'id' ], h5: [ 'id' ], h6: [ 'id' ]}
     };
     // replace things which look like tags which sanitizeHtml will eat
     s = s.split('\n>').join('\n$1$');
@@ -256,7 +253,7 @@ function getMimeType(imageSource) {
 function render(inputStr, options, callback) {
 
     if (options.attr) md.use(attrs);
-    if (options['no-links']) md.disable('linkify');
+    if (options.hasOwnProperty('no-links')) md.disable('linkify')
 
     if (typeof callback === 'undefined') { // for pre-v1.4.0 compatibility
         callback = options;
@@ -264,9 +261,6 @@ function render(inputStr, options, callback) {
     }
     if (options.inline == true) {
         options.minify = true;
-    }
-    if (typeof options.root === 'undefined') {
-        options.root = __dirname;
     }
     return maybe(callback, new Promise(function (resolve, reject) {
         globalOptions = options;
@@ -278,7 +272,7 @@ function render(inputStr, options, callback) {
             inputArr = ('\n' + inputStr).split('\n--- \n');
         }
         var headerStr = inputArr[1];
-        var header = yaml.parse(headerStr);
+        var header = yaml.safeLoad(headerStr);
 
         /* non-matching languages between Ruby Rouge and highlight.js at 2016/07/10 are
         ['ceylon','common_lisp','conf','cowscript','erb','factor','io','json-doc','liquid','literate_coffeescript','literate_haskell','llvm','make',
@@ -307,8 +301,7 @@ function render(inputStr, options, callback) {
                 var entry = {};
                 if (tag === 'h1') {
                     entry.id = $(this).attr('id');
-                    entry.title = $(this).text();
-                    entry.content = $(this).html();
+                    entry.content = $(this).text();
                     entry.children = [];
                     h1 = entry;
                     result.push(entry);
@@ -316,8 +309,7 @@ function render(inputStr, options, callback) {
                 if (tag === 'h2') {
                     let child = {};
                     child.id = $(this).attr('id');
-                    entry.title = $(this).text();
-                    child.content = $(this).html();
+                    child.content = $(this).text();
                     child.children = [];
                     h2 = child;
                     if (h1) h1.children.push(child);
@@ -325,8 +317,7 @@ function render(inputStr, options, callback) {
                 if ((headingLevel >= 3) && (tag === 'h3')) {
                     let child = {};
                     child.id = $(this).attr('id');
-                    entry.title = $(this).text();
-                    child.content = $(this).html();
+                    child.content = $(this).text();
                     child.children = [];
                     h3 = child;
                     if (h2) h2.children.push(child);
@@ -334,8 +325,7 @@ function render(inputStr, options, callback) {
                 if ((headingLevel >= 4) && (tag === 'h4')) {
                     let child = {};
                     child.id = $(this).attr('id');
-                    entry.title = $(this).text();
-                    child.content = $(this).html();
+                    child.content = $(this).text();
                     child.children = [];
                     h4 = child;
                     if (h3) h3.children.push(child);
@@ -343,8 +333,7 @@ function render(inputStr, options, callback) {
                 if ((headingLevel >= 5) && (tag === 'h5')) {
                     let child = {};
                     child.id = $(this).attr('id');
-                    entry.title = $(this).text();
-                    child.content = $(this).html();
+                    child.content = $(this).text();
                     child.children = [];
                     h5 = child;
                     if (h4) h4.children.push(child);
@@ -352,36 +341,51 @@ function render(inputStr, options, callback) {
                 if ((headingLevel >= 6) && (tag === 'h6')) {
                     let child = {};
                     child.id = $(this).attr('id');
-                    entry.title = $(this).text();
-                    child.content = $(this).html();
+                    child.content = $(this).text();
                     if (h5) h5.children.push(child);
                 }
             });
             return result; //[{id:'test',content:'hello',children:[]}];
         };
         locals.partial = partial;
-        locals.image_tag = function (image, altText, className) {
+        locals.image_tag = function (image, altText, className, isDiv) {
             var imageSource = "source/images/" + image;
             if (globalOptions.inline) {
-                var imgContent = safeReadFileSync(path.join(globalOptions.root, imageSource));
+                var imgContent = safeReadFileSync(path.join(__dirname, imageSource));
                 imageSource = getBase64ImageSource(imageSource, imgContent);
             }
-            return '<img src="'+imageSource+'" class="' + className + '" alt="' + altText + '">';
+            if (isDiv) {
+                return '<div style="background-image: url(' + imageSource + ')" class="logo"></div>';
+            }
+            else {
+                return '<img src="'+imageSource+'" class="' + className + '" alt="' + altText + '">';
+            }
+        };
+        locals.favico = function(image) {
+            var imageSource = "source/images/favico.ico";
+            if (image) {
+                imageSource = "source/images/" + image;
+            }
+            if (globalOptions.inline) {
+                var imgContent = safeReadFileSync(path.join(__dirname, imageSource));
+                imageSource = getBase64ImageSource(imageSource, imgContent);
+            }
+            return '<link rel="shortcut icon" href="' + imageSource + '" />';
         };
         locals.logo_image_tag = function () {
-            if (!globalOptions.logo) return locals.image_tag('logo.png', 'Logo', 'logo');
+            if (!globalOptions.logo) return locals.image_tag('logo.png', 'Logo', 'logo', true);
             var imageSource = path.resolve(process.cwd(), globalOptions.logo);
             var imgContent = safeReadFileSync(imageSource);
             if (globalOptions.inline) {
                 imageSource = getBase64ImageSource(imageSource, imgContent);
             } else {
                 var logoPath = "source/images/custom_logo" + path.extname(imageSource);
-                fs.writeFileSync(path.join(globalOptions.root, logoPath), imgContent);
+                fs.writeFileSync(path.join(__dirname, logoPath), imgContent);
                 imageSource = logoPath;
             }
-            var html = '<img src="' + imageSource + '" class="logo" alt="Logo">';
+            var html = '<div style="background-image: url(' + imageSource + ')" class="logo"></div>';
             if (globalOptions['logo-url']) {
-                html = '<a href="' + md.utils.escapeHtml(globalOptions['logo-url']) + '">' + html + '</a>';
+                html = '<a class="logo-container" href="' + md.utils.escapeHtml(globalOptions['logo-url']) + '">' + html + '</a>';
             }
             return html;
         };
@@ -391,7 +395,7 @@ function render(inputStr, options, callback) {
 
         var ejsOptions = {};
         ejsOptions.debug = false;
-        ejs.renderFile(path.resolve(globalOptions.root, options.layout || 'source/layouts/layout.ejs'), locals, ejsOptions, function (err, str) {
+        ejs.renderFile(path.join(__dirname, options.layout || '/source/layouts/layout.ejs'), locals, ejsOptions, function (err, str) {
             if (err) reject(err)
             else resolve(str);
         });
@@ -400,6 +404,6 @@ function render(inputStr, options, callback) {
 
 module.exports = {
     render: render,
-    srcDir: function () { return globalOptions.root; }
+    srcDir: function () { return __dirname; }
 };
 

@@ -3,13 +3,14 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
 const options = require('tiny-opts-parser')(process.argv);
 const shins = require('./index.js');
 
 if (options.customcss) options.customCss = options.customcss; // backwards compatibility
 
+//var inputName = './source/index.html.md';
 var inputName = './source/index.html.md';
+
 
 if (options._.length > 2) {
     inputName = options._[2];
@@ -19,7 +20,6 @@ if (options.h) options.help   = options.h;
 if (options.a) options.attr   = options.a;
 if (options.l) options.layout = options.l;
 if (options.o) options.output = options.o;
-if (options.r) options.root   = options.r;
 
 if (options.help) {
     console.log('Usage: node shins [options] [input-markdown-filename]');
@@ -35,7 +35,6 @@ if (options.help) {
     console.log('--css       specify path to additional css file')
     console.log('--minify    minify output html');
     console.log('-o,--output specify output html file');
-    console.log('-r,--root   specify root directory containing source and pub directories');
     console.log('--unsafe    do not sanitise input markdown');
     console.log('--no-links  do not automatically convert links in text to anchor tags');
     process.exit(0);
@@ -51,7 +50,7 @@ shins.render(inputStr,options,function(err,str){
     }
     else {
         str = str.split('\r').join('');
-        fs.writeFileSync(options.output||path.join(options.root,'index.html'),str,'utf8');
+        fs.writeFileSync(options.output||'./index.html',str,'utf8');
     }
 });
 

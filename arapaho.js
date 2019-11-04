@@ -10,7 +10,6 @@ const ejs = require('ejs');
 const compression = require('compression');
 const args = require('tiny-opts-parser')(process.argv);
 const opn = require('opn');
-const chokidar = require('chokidar');
 
 const shins = require('./index.js');
 
@@ -21,7 +20,7 @@ if (args.l) args.launch = args.l;
 if (args.h) args.help = args.h;
 
 if (args.help) {
-    console.log('Usage: node arapaho [port] [-l|--launch] [-p|--preserve] [shins-options]');
+    console.log('Usage: node arapaho [port] [-l|--launch] [-p|--preserve]');
     process.exit(0);
 }
 
@@ -31,11 +30,9 @@ app.use(compression());
 app.set('view engine', 'html');
 app.engine('html', ejs.renderFile);
 
-if (fs.existsSync('source/includes')) {
-    chokidar.watch('source/includes', {}).on('all',function(eventType, filename) {
-        includesModified = true;
-    });
-}
+fs.watch('source/includes', function(eventType, filename) {
+    includesModified = true;
+});
 
 function getLastGenTime(fpath) {
     if (lastGenTime[fpath]) return lastGenTime[fpath];
@@ -59,7 +56,7 @@ function check(req,res,fpath) {
         let source = path.join(__dirname,'source',fpath+'.md');
         fs.readFile(source,'utf8',function(err,markdown){
             if (markdown) {
-                let options = Object.assign({},args);
+                let options = {};
                 if (req.query.customcss) {
                     options.customCss = true;
                 }
